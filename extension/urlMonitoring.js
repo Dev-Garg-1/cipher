@@ -1,6 +1,8 @@
-const API_URL = "https://your-backend.com/api/check-url";
-const INCOGNITO_ALERT_URL = import.meta.env.VITE_BACKENDURL ;
-const ACTIVE_TAB_UPDATE_URL = `${import.meta.env.VITE_BACKENDURL}/api/monitor/active-tab`; // Backend endpoint to receive active tab data
+// const API_URL = "https://your-backend.com/api/check-url";
+// const INCOGNITO_ALERT_URL = import.meta.env.VITE_BACKENDURL ;
+// const ACTIVE_TAB_UPDATE_URL = `${import.meta.env.VITE_BACKENDURL}/api/monitor/active-tab`; // Backend endpoint to receive active tab data
+const manifest = chrome.runtime.getManifest();
+const BACKEND_URL = manifest.backend_url;
 // console.log("Background worker loaded");
 
 let currentTabId = null;
@@ -32,7 +34,7 @@ async function alertIncognitoOpen(url) {
     }
 
     try {
-      await fetch(`${import.meta.env.VITE_BACKENDURL}/api/monitor/incognito-alert`, {
+      await fetch(`${BACKEND_URL}/api/monitor/incognito-alert`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -67,7 +69,7 @@ console.log("request headed ")
         }
 
         try {
-          await fetch(`${import.meta.env.VITE_BACKENDURL}/api/monitor/monitor-url`, {
+          await fetch(`${BACKEND_URL}/api/monitor/monitor-url`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -167,7 +169,7 @@ async function checkUrlWithBackend(url) {
   if (!token) return { blocked: false };
 
   try {
-    const res = await fetch(`${import.meta.env.VITE_BACKENDURL}/api/monitor/check-url`, {
+    const res = await fetch(`${BACKEND_URL}/api/monitor/check-url`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

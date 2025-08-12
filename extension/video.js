@@ -1,4 +1,4 @@
-const VIDEO_API = `${import.meta.env.VITE_BACKENDURL}/api/check-video-frame`;
+// const VIDEO_API = `${import.meta.env.VITE_BACKENDURL}/api/check-video-frame`;
 
 // Convert canvas frame to base64
 function getFrameBase64(video) {
