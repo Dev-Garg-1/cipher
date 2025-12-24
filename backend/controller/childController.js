@@ -1,5 +1,5 @@
 import Child from "../models/child.js";
-// import { v4 as uuidv4 } from "uuid";
+import { v4 as uuidv4 } from "uuid";
 import Parent from '../models/parent.js'; 
 import { generateToken } from "../utillity/jwt.js";
 // import Child from '../models/Child.js';
@@ -22,6 +22,7 @@ import { generateToken } from "../utillity/jwt.js";
       name, 
       email,
       parent: parent._id, // link the child to the parent
+      extensionToken: uuidv4()
     });
 
     // Save the new child to the database
@@ -37,6 +38,7 @@ import { generateToken } from "../utillity/jwt.js";
       token: token,
     });
   } catch (err) {
+    console.log(err.message)
     res.status(500).json({ message: err.message });
   }
 };
