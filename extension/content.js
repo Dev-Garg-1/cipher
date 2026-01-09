@@ -1,3 +1,7 @@
+console.log("CipherGuard content script loaded");
+
+const NSFW_THRESHOLD = 0.3;
+
 const offensiveWords = [
   "aand",
   "aandu",
@@ -522,139 +526,134 @@ const offensiveWords = [
   "zoophilia",
 ];
 
+/* ================= UTILITIES ================= */
 
-// --- Text Detection & Removal ---
-const NSFW_THRESHOLD = 0.3;
-
-
-// Traverse DOM + shadow DOM
-function traverseDOM(node, callback) {
-  callback(node);
-  if (node.shadowRoot) {
-    node.shadowRoot.childNodes.forEach(child => traverseDOM(child, callback));
-  }
-  node.childNodes.forEach(child => traverseDOM(child, callback));
+// Escape regex special chars
+function escapeRegex(word) {
+  return word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+// Build safe regex
+const offensiveRegex = new RegExp(
+  `\\b(${offensiveWords.map(escapeRegex).join("|")})\\b`,
+  "gi"
+);
 
-// Clean offensive text nodes
+// Inject blur CSS
+const style = document.createElement("style");
+style.textContent = `
+  .blurred-safe {
+    filter: blur(15px) !important;
+    transition: filter 0.3s ease;
+  }
+`;
+document.documentElement.appendChild(style);
+
+/* ================= TEXT FILTER ================= */
+
 function cleanText(node) {
-  if (node.nodeType === 3) {
-    const regex = new RegExp(`\\b(${offensiveWords.join("|")})\\b`, "gi");
-    if (regex.test(node.nodeValue)) {
-      const censoredText = node.nodeValue.replace(regex, "****");
-      const newTextNode = document.createTextNode(censoredText);
-      node.parentNode.replaceChild(newTextNode, node);
+  if (node.nodeType === Node.TEXT_NODE) {
+    if (offensiveRegex.test(node.nodeValue)) {
+      node.nodeValue = node.nodeValue.replace(offensiveRegex, "****");
     }
-  } else {
-    node.childNodes.forEach(cleanText);
   }
 }
-cleanText(document.body);
+
+/* ================= IMAGE FILTER (ALT BASED) ================= */
+
 function blurOffensiveImages() {
-  document.querySelectorAll("img").forEach((img) => {
-    const altText = img.alt.toLowerCase();
-    if (offensiveWords.some((word) => altText.includes(word))) {
+  document.querySelectorAll("img:not([data-cipher-checked])").forEach(img => {
+    const alt = (img.alt || "").toLowerCase();
+    if (offensiveWords.some(word => alt.includes(word))) {
       img.classList.add("blurred-safe");
     }
   });
 }
 
-// Initial run
-blurOffensiveImages();
+/* ================= IMAGE NSFW MODEL ================= */
 
+async function classifyImage(img) {
+  if (img.dataset.cipherChecked) return;
+  img.dataset.cipherChecked = "true";
 
-// // Mutation Observer for dynamic pages
-// const observer = new MutationObserver((mutations) => {
-//   mutations.forEach((mutation) => {
-//     mutation.addedNodes.forEach((node) => {
-//       cleanText(node);
-//       if (node.nodeType === 1) blurOffensiveImages();
-//     });
-//   });
-// });
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
 
-observer.observe(document.body, { childList: true, subtree: true });
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0);
 
-const NSFW_THRESHOLD = 0.3; // adjust this based on model behavior
+    const blob = await new Promise(res =>
+      canvas.toBlob(res, "image/jpeg", 0.8)
+    );
+    if (!blob) return;
 
-  async function classifyImage(img) {
-    try {
-      // Create canvas
-      const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      console.log("width height")
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0);
-      console.log(ctx)
-      // Convert canvas to blob
-      const blob = await new Promise(resolve =>
-        canvas.toBlob(resolve, "image/jpeg")
-      );
-      console.log("yea after blob")
-      if (!blob) throw new Error("Failed to convert image to blob");
+    const formData = new FormData();
+    formData.append("file", blob, "image.jpg");
 
-      // Prepare FormData
-      const formData = new FormData();
-      formData.append("file", blob, "image.jpg");
-      console.log("after formData")
-      // Send request to model
-      const response = await fetch("https://84b3-34-105-2-146.ngrok-free.app/classify/", {
-        method: "POST",
-        body: formData,
-      });
-      console.log("response generated")
-      const data = await response.json();
+    const response = await fetch(
+      "https://1184a9b4b00e.ngrok-free.app/api/monitor/classify/",
+      { method: "POST", body: formData }
+    );
 
-      const nsfwScore = data.labels?.nsfw ?? 0;
-      if (nsfwScore >= NSFW_THRESHOLD) {
-        img.classList.add("blurred-safe");
-      }
-      console.log("score generated")
-    } catch (err) {
-      console.error("Image NSFW check failed:", err);
+    const data = await response.json();
+    const score = data?.labels?.nsfw ?? 0;
+
+    if (score >= NSFW_THRESHOLD) {
+      img.classList.add("blurred-safe");
     }
+  } catch (err) {
+    console.error("CipherGuard image scan failed:", err);
   }
+}
 
+/* ================= DOM SCAN ================= */
 
-// Handle each node
 function handleNode(node) {
   cleanText(node);
-  blurOffensiveImages(node);
 
-
-  if (node.tagName === "IMG") {
-    if (node.complete && node.naturalWidth !== 0) {
-      classifyImage(node);
-    } else {
-      node.addEventListener("load", () => classifyImage(node));
-    }
-  }
-}
-
-
-// Check all images and text
-function scanAllContent() {
-  traverseDOM(document.body, handleNode);
-}
-
-
-// Initial run
-scanAllContent();
-
-
-// Observe for changes
-const observer = new MutationObserver((mutations) => {
-  for (const mutation of mutations) {
-    for (const node of mutation.addedNodes) {
-      if (node.nodeType === 1) {
-        traverseDOM(node, handleNode);
+  if (node.nodeType === Node.ELEMENT_NODE) {
+    if (node.tagName === "IMG") {
+      if (node.complete && node.naturalWidth > 0) {
+        classifyImage(node);
+      } else {
+        node.addEventListener("load", () => classifyImage(node));
       }
     }
   }
-});
+}
 
+function traverseDOM(root) {
+  const walker = document.createTreeWalker(
+    root,
+    NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
+    null
+  );
+
+  let node;
+  while ((node = walker.nextNode())) {
+    handleNode(node);
+  }
+}
+
+/* ================= INITIAL RUN ================= */
+
+traverseDOM(document.body);
+blurOffensiveImages();
+
+/* ================= OBSERVER ================= */
+
+const observer = new MutationObserver(mutations => {
+  for (const mutation of mutations) {
+    mutation.addedNodes.forEach(node => {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        traverseDOM(node);
+        blurOffensiveImages();
+      }
+    });
+  }
+});
 
 observer.observe(document.body, {
   childList: true,

@@ -1,22 +1,41 @@
-// const VIDEO_API = `${import.meta.env.VITE_BACKENDURL}/api/check-video-frame`;
+console.log("CipherGuard video script loaded");
 
-// Convert canvas frame to base64
+/* ================= CONFIG ================= */
+
+// 🔴 PASTE YOUR NGROK URL HERE
+const VIDEO_API = "https://1184a9b4b00e.ngrok-free.app/check-video-frame";
+
+const SCAN_INTERVAL = 3000; // 3 seconds
+const monitoredVideos = new WeakSet();
+
+/* ================= FRAME CAPTURE ================= */
+
 function getFrameBase64(video) {
   const canvas = document.createElement("canvas");
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
+
   const ctx = canvas.getContext("2d");
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
   return canvas.toDataURL("image/jpeg");
 }
 
-// Analyze video frames
-async function analyzeVideoFrame(video) {
-  if (video.paused || video.ended || video.readyState < 2) return;
+/* ================= ANALYSIS ================= */
 
-  const frame = getFrameBase64(video);
+async function analyzeVideoFrame(video) {
+  if (
+    video.paused ||
+    video.ended ||
+    video.readyState < 2 ||
+    video.videoWidth === 0
+  ) {
+    return;
+  }
 
   try {
+    const frame = getFrameBase64(video);
+
     const res = await fetch(VIDEO_API, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -24,37 +43,54 @@ async function analyzeVideoFrame(video) {
     });
 
     const data = await res.json();
-    if (data.offensive) {
-      video.style.filter = "blur(15px)";
-      // Optional: video.pause();
+
+    if (data?.offensive === true) {
+      video.classList.add("blurred-safe");
     } else {
-      video.style.filter = "none";
+      video.classList.remove("blurred-safe");
     }
   } catch (err) {
-    console.error("Video API error:", err);
+    console.error("CipherGuard video scan failed:", err);
   }
 }
 
-// Start scanning all videos
-function monitorVideos() {
-  const videos = document.querySelectorAll("video");
-  videos.forEach((video) => {
-    setInterval(() => analyzeVideoFrame(video), 3000); // every 3s
-  });
+/* ================= MONITOR ================= */
+
+function monitorVideo(video) {
+  if (monitoredVideos.has(video)) return;
+  monitoredVideos.add(video);
+
+  const interval = setInterval(() => analyzeVideoFrame(video), SCAN_INTERVAL);
+
+  video.addEventListener("ended", () => clearInterval(interval));
+  video.addEventListener("pause", () => clearInterval(interval));
 }
 
-// Run on load
-monitorVideos();
+/* ================= INIT ================= */
 
-// Observe for dynamically added videos
-const observer = new MutationObserver((mutations) => {
-  mutations.forEach((mutation) => {
-    mutation.addedNodes.forEach((node) => {
-      if (node.tagName === "VIDEO" || node.querySelector?.("video")) {
-        monitorVideos();
+function scanVideos(root = document) {
+  root.querySelectorAll("video").forEach(monitorVideo);
+}
+
+scanVideos();
+
+/* ================= OBSERVER ================= */
+
+const observer = new MutationObserver(mutations => {
+  mutations.forEach(mutation => {
+    mutation.addedNodes.forEach(node => {
+      if (node.nodeType === 1) {
+        if (node.tagName === "VIDEO") {
+          monitorVideo(node);
+        } else {
+          scanVideos(node);
+        }
       }
     });
   });
 });
 
-observer.observe(document.body, { childList: true, subtree: true });
+observer.observe(document.body, {
+  childList: true,
+  subtree: true
+});

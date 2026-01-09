@@ -30,7 +30,5 @@
   "icons": {
     "128": "favicon.png"
   },
-  "incognito": "spanning",
-    "backend_url": "http://localhost:5000"
-
+  "incognito": "spanning"
 }
