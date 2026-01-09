@@ -22,10 +22,17 @@ This repository is a monorepo with separate frontend and backend applications:
 
 ## Screenshots
 
-![landing-page-1](screenshots/landing-page-1)
+- landing Page
+![landing-page-1](screenshots/landing-page-1.png)
+
+- Dashboard
 ![dashboard](screenshots/dashboard.png)
+
+- Other landing pages
 ![landing-page-2](screenshots/landing-page-2.png)
+
 ![landing-page-3](screenshots/landing-page-3.png)
+
 ![landing-page-4](screenshots/landing-page-4.png)
 
 
