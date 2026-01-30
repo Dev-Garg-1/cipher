@@ -2,8 +2,7 @@ console.log("CipherGuard video script loaded");
 
 /* ================= CONFIG ================= */
 
-// 🔴 PASTE YOUR NGROK URL HERE
-const VIDEO_API = "https://1184a9b4b00e.ngrok-free.app/check-video-frame";
+const VIDEO_API = "https://051a2f2d8c10.ngrok-free.app /check-video-frame";
 
 const SCAN_INTERVAL = 3000; // 3 seconds
 const monitoredVideos = new WeakSet();

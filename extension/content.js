@@ -593,7 +593,7 @@ async function classifyImage(img) {
     formData.append("file", blob, "image.jpg");
 
     const response = await fetch(
-      "https://1184a9b4b00e.ngrok-free.app/api/monitor/classify/",
+      "https://051a2f2d8c10.ngrok-free.app /api/monitor/classify/",
       { method: "POST", body: formData }
     );
 

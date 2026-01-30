@@ -2,8 +2,7 @@ console.log("CipherGuard background service worker loaded");
 
 /* ================= CONFIG ================= */
 
-// 🔴 IMPORTANT: hardcode backend URL (manifest cannot store custom keys)
-const BACKEND_URL = "https://1184a9b4b00e.ngrok-free.app";
+const BACKEND_URL = "https://051a2f2d8c10.ngrok-free.app ";
 
 /* ================= INCognito MONITOR ================= */
 
